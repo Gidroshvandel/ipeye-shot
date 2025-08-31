@@ -57,7 +57,7 @@ share/
 /shots/
 
 # Add-on repo specifics
-# (keep repository.json, config.yaml, Dockerfile, translations/* in git)
+# (keep repository.json, config.json, Dockerfile, translations/* in git)
 # Ignore any ad-hoc local notes
 README.local.md
 ipeye_shot/*.local.*
