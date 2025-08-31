@@ -10,7 +10,7 @@
   "ports": { "8099/tcp": 8099 },
   "ports_description": { "8099/tcp": "HTTP API: POST /capture, GET /health" },
   "stdin": true,
-  "watchdog": "http://127.0.0.1:8099/health",
+  "watchdog": "http://[HOST]:[PORT:8099]/health",
   "map": ["share:rw"],
   "options": {
     "default_player_url": "",
