@@ -1,7 +1,0 @@
-{
-  "build_from": {
-    "amd64": "deepquestai/deepstack:gpu-2022.01.1",
-    "aarch64": "deepquestai/deepstack:arm64-server-2022.01.1",
-    "armv7": "deepquestai/deepstack:arm64-server-2022.01.1"
-  }
-}
