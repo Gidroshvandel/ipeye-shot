@@ -1,0 +1,67 @@
+# ------------------------------------------------------------
+# Home Assistant add-on repo (.gitignore)
+# ------------------------------------------------------------
+
+# OS junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.Spotlight-V100
+.Trashes
+*.swp
+*.swo
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.iml
+*.code-workspace
+
+# Logs
+*.log
+logs/
+ipeye_shot/*.log
+
+# Archives / bundles
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Build / dist caches (if any appear)
+dist/
+build/
+.cache/
+tmp/
+temp/
+
+# Node / npm (we keep package-lock.json if present)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npmrc
+
+# Docker / local env
+.env
+.env.*
+docker-compose.override.yml
+
+# Local testing artifacts from README
+options.json
+ipeye_shot/shots/
+share/
+/share/
+/shots/
+
+# Add-on repo specifics
+# (keep repository.json, config.yaml, Dockerfile, translations/* in git)
+# Ignore any ad-hoc local notes
+README.local.md
+ipeye_shot/*.local.*
+
+# OS-specific inside subfolders too
+**/.DS_Store
+**/Thumbs.db

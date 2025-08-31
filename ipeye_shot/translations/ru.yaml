@@ -1,0 +1,45 @@
+configuration:
+  default_player_url:
+    name: URL камеры по умолчанию
+    description: Используется, если в запросе не передан player_url. Полный URL iframe (IPEYE) с параметрами dev/autoplay.
+  default_camera:
+    name: Камера по умолчанию
+    description: Идентификатор камеры/зоны в Double-Take (поле camera).
+  dt_url:
+    name: Double-Take upload URL
+    description: Полный адрес API Double-Take (/api/recognize/upload). Обычно http://<IP_HA>:3000/api/recognize/upload.
+  save_dir:
+    name: Папка для снимков
+    description: Куда сохранять JPG и JSON-ответ DT. Рекомендуется /share/ipeye_shots.
+  save_always:
+    name: Всегда сохранять снимок
+    description: Если выключено — сохраняем только JSON-ответ (и/или при ошибке).
+  play_wait_ms:
+    name: Задержка перед снимком (мс)
+    description: Время, чтобы плеер успел отрисовать первый кадр перед скриншотом.
+  view_w:
+    name: Ширина окна браузера
+    description: Размер окна headless Chromium в пикселях (ширина).
+  view_h:
+    name: Высота окна браузера
+    description: Размер окна headless Chromium в пикселях (высота).
+  headless:
+    name: Режим headless
+    description: new | true | false. Рекомендуется new.
+  iframe_selector:
+    name: CSS-селектор iframe
+    description: Если на странице несколько iframe — укажите, какой скриншотить.
+  http_port:
+    name: Порт HTTP сервиса
+    description: Эндпоинты /capture (POST) и /health (GET). Не публикуйте наружу без защиты.
+  retries:
+    name: Повторы съёма кадра
+    description: Сколько раз повторить попытку каждой стратегии (video/canvas, iframe, page).
+  retry_delay_ms:
+    name: Пауза между повторами (мс)
+    description: Задержка между повторными попытками.
+
+network:
+  "8099/tcp":
+    name: HTTP API аддона
+    description: POST /capture — запуск скриншота; GET /health — проверка состояния.

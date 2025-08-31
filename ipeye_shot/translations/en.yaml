@@ -1,0 +1,45 @@
+configuration:
+  default_player_url:
+    name: Default camera URL
+    description: Used if no player_url is provided in the request. Full iframe URL (IPEYE) with dev/autoplay params.
+  default_camera:
+    name: Default camera
+    description: Camera/zone identifier for Double-Take (camera field).
+  dt_url:
+    name: Double-Take upload URL
+    description: Full Double-Take API endpoint (/api/recognize/upload), e.g. http://<HA_IP>:3000/api/recognize/upload.
+  save_dir:
+    name: Snapshots directory
+    description: Where to store JPG and the Double-Take JSON response. Recommended /share/ipeye_shots.
+  save_always:
+    name: Always save snapshot
+    description: If disabled, only JSON (and/or on failure) will be saved.
+  play_wait_ms:
+    name: Delay before capture (ms)
+    description: Time for the player to render the first frame before taking a screenshot.
+  view_w:
+    name: Browser window width
+    description: Headless Chromium viewport width in pixels.
+  view_h:
+    name: Browser window height
+    description: Headless Chromium viewport height in pixels.
+  headless:
+    name: Headless mode
+    description: new | true | false. Recommended: new.
+  iframe_selector:
+    name: CSS selector for iframe
+    description: Specify if multiple iframes exist on the page.
+  http_port:
+    name: HTTP service port
+    description: Endpoints: POST /capture, GET /health. Do not expose publicly.
+  retries:
+    name: Capture retries
+    description: Number of retries per strategy (video/canvas, iframe, page).
+  retry_delay_ms:
+    name: Retry delay (ms)
+    description: Delay between retry attempts.
+
+network:
+  "8099/tcp":
+    name: Add-on HTTP API
+    description: POST /capture to trigger, GET /health to check readiness.
