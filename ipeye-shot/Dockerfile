@@ -4,7 +4,7 @@ FROM ghcr.io/puppeteer/puppeteer:22
 WORKDIR /usr/src/app
 
 # Нужные доп. зависимости для аплоада
-RUN npm install --omit=dev form-data node-fetch@3 puppeteer
+RUN npm install --omit=dev form-data node-fetch@3
 
 # Кладём наши файлы рядом c node_modules puppeteer
 COPY capture-and-send.js ./capture-and-send.js
