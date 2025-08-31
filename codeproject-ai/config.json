@@ -1,0 +1,16 @@
+{
+  "name": "CodeProject.AI Server",
+  "slug": "codeproject_ai",
+  "version": "2.9.x-ha1",
+  "description": "Self-hosted AI microserver (face/object/OCR). Веб-интерфейс и REST API на порту 32168.",
+  "arch": ["amd64", "aarch64"],
+  "startup": "services",
+  "boot": "auto",
+  "host_network": true,
+  "webui": "http://[HOST]:[PORT:32168]/",
+  "watchdog": "http://[HOST]:[PORT:32168]/",
+  "ingress": false,
+  "map": ["share:rw"],
+  "options": {},
+  "schema": {}
+}

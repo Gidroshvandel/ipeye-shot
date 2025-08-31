@@ -25,13 +25,13 @@ configuration:
     description: Headless Chromium viewport height in pixels.
   headless:
     name: Headless mode
-    description: new | true | false. Recommended: new.
+    description: "new | true | false. Recommended: new."
   iframe_selector:
     name: CSS selector for iframe
     description: Specify if multiple iframes exist on the page.
   http_port:
     name: HTTP service port
-    description: Endpoints: POST /capture, GET /health. Do not expose publicly.
+    description: "Endpoints: POST /capture, GET /health. Do not expose publicly."
   retries:
     name: Capture retries
     description: Number of retries per strategy (video/canvas, iframe, page).

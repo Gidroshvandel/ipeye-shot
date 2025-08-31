@@ -136,7 +136,7 @@ data:
 ## Локальное тестирование (как обычный контейнер)
 
 ```bash
-# в папке ipeye_shot
+# в папке ipeye-shot
 docker build -t ipeye-shot:dev .
 mkdir -p ./shots
 

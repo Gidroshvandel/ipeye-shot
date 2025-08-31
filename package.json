@@ -2,7 +2,7 @@
   "name": "untitled",
   "version": "1.0.0",
   "description": "",
-  "main": "ipeye_shot/runner.js",
+  "main": "ipeye-shot/runner.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

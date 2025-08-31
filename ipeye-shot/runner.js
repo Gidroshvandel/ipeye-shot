@@ -44,11 +44,11 @@ async function pump() {
         const job = queue.shift();
         const opts = await loadOptions();
         if (!(job.player_url || opts.default_player_url)) {
-            console.error("[ipeye_shot] empty player_url; skip");
+            console.error("[ipeye-shot] empty player_url; skip");
             continue;
         }
         const code = await runJob(job, opts);
-        console.log("[ipeye_shot] job finished:", code);
+        console.log("[ipeye-shot] job finished:", code);
     }
     busy = false;
 }
@@ -104,7 +104,7 @@ async function startHttp() {
             console.error(`[ipeye_shot] Port in use: ${BIND}:${PORT}. Второй сервер не стартуем — первый уже слушает.`);
             return; // оставляем процесс жить
         }
-        console.error("[ipeye_shot] HTTP server error:", e);
+        console.error("[ipeye-shot] HTTP server error:", e);
         process.exit(1);
     });
 
@@ -136,10 +136,10 @@ function startStdin() {
             buf = buf.slice(idx + 1);
             if (!line) continue;
             try { enqueue(JSON.parse(line)); }
-            catch (e) { console.error("[ipeye_shot] bad JSON on stdin:", e.message); }
+            catch (e) { console.error("[ipeye-shot] bad JSON on stdin:", e.message); }
         }
     });
-    console.log("[ipeye_shot] ready for addon_stdin and HTTP /capture");
+    console.log("[ipeye-shot] ready for addon_stdin and HTTP /capture");
 }
 
 /* ---------- bootstrap ---------- */
