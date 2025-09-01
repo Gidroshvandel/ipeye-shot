@@ -111,17 +111,67 @@ async function startHttp(opts, cameraManager) {
             }
 
             if (SERVE && req.method === "GET" && req.url.startsWith(PUBLIC_PREFIX + "/")) {
-                const rel = decodeURIComponent(req.url.slice((PUBLIC_PREFIX + "/").length));
-                const file = path.join(SAVE_DIR, rel);
-                try {
-                    const stat = await fsp.stat(file);
-                    res.writeHead(200, {"Content-Type": "image/jpeg", "Content-Length": stat.size});
-                    fs.createReadStream(file).pipe(res);
-                } catch {
-                    res.writeHead(404);
-                    res.end("Not found");
+                const start = Date.now();
+                const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+
+                const finish = (status, extra = "") => {
+                    const ms = Date.now() - start;
+                    console.log(`[${new Date().toISOString()}] ${req.method} ${pathname} -> ${status}${extra ? " " + extra : ""} ${ms}ms`);
+                };
+
+                if (pathname.startsWith(PUBLIC_PREFIX + "/")) {
+                    try {
+                        const rel = decodeURIComponent(pathname.slice((PUBLIC_PREFIX + "/").length));
+                        const abs = path.resolve(SAVE_DIR, rel);
+                        const root = path.resolve(SAVE_DIR);
+
+                        // простая защита от выхода из каталога
+                        if (!abs.startsWith(root + path.sep)) {
+                            res.writeHead(403);
+                            res.end("Forbidden");
+                            finish(403);
+                            return;
+                        }
+
+                        let stat;
+                        try {
+                            stat = await fsp.stat(abs);
+                        } catch (e) {
+                            if (e.code === "ENOENT") {
+                                res.writeHead(404);
+                                res.end("Not found");
+                                finish(404);
+                            } else {
+                                res.writeHead(500);
+                                res.end("Server error");
+                                finish(500, e.code || "");
+                            }
+                            return;
+                        }
+
+                        res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": stat.size });
+
+                        const stream = fs.createReadStream(abs);
+                        stream.on("error", (e) => {
+                            if (!res.headersSent) res.writeHead(500);
+                            res.end("Read error");
+                            finish(500, e.code || "read-error");
+                        });
+                        res.on("finish", () => {
+                            // компактный вывод размера в КБ
+                            const kb = Math.round((stat.size / 1024) * 10) / 10;
+                            finish(200, `${kb}KB`);
+                        });
+
+                        stream.pipe(res);
+                        return;
+                    } catch (e) {
+                        res.writeHead(500);
+                        res.end("Unhandled error");
+                        finish(500);
+                        return;
+                    }
                 }
-                return;
             }
 
             if (req.method === "GET" && req.url === "/cameras") {
@@ -307,8 +357,6 @@ class CameraManager {
                 const text = await res.text().catch(() => "");
                 await fsp.writeFile(path.join(this.opts.save_dir || def_save_dir, `${baseName}.json`), text || "{}");
                 if (!res.ok) throw new Error(`DT error ${res.status} ${res.statusText}`);
-
-                console.log("[dt] GET result", res);
 
                 resolveRes({file: path.basename(jpg), camera: cameraLabel || name, ok: true});
             } catch (e) {
