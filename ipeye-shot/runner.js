@@ -203,16 +203,26 @@ class CameraManager {
 
 /* ===== bootstrap ===== */
 (async () => {
-    const opts = {
-        save_dir: def_save_dir,
-        http_port: 8099,
-        http_bind: "0.0.0.0",
-        public_prefix: "/shots",
-        dt_url: process.env.DT_URL || null,
-        max_concurrent: 2,
-        capture_timeout_ms: 15000,
-        browser_idle_minutes: 15,
-        file_ttl_hours: 6,
+    // читаем конфиг
+    let opts = {};
+    try {
+        const raw = await fsp.readFile(process.env.OPT_PATH || "/data/options.json", "utf8");
+        opts = JSON.parse(raw);
+    } catch {
+        opts = {};
+    }
+
+    // приоритет: ENV > options.json > дефолт
+    opts = {
+        save_dir: opts.save_dir || def_save_dir,
+        http_port: opts.http_port || 8099,
+        http_bind: opts.http_bind || "0.0.0.0",
+        public_prefix: opts.public_prefix || "/shots",
+        dt_url: process.env.DT_URL || opts.dt_url || null,
+        max_concurrent: opts.max_concurrent || 2,
+        capture_timeout_ms: opts.capture_timeout_ms || 15000,
+        browser_idle_minutes: opts.browser_idle_minutes || 15,
+        file_ttl_hours: opts.file_ttl_hours || 6,
     };
 
     const manager = new CameraManager(opts);
