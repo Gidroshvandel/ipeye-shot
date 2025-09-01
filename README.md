@@ -140,8 +140,8 @@ data:
 docker build -t ipeye-shot:dev .
 mkdir -p ./shots
 
-# временные опции (как /data/options.json в HA)
-cat > ../options.json <<'JSON'
+# временные опции (как /data/options.dev.json в HA)
+cat > ../options.dev.json <<'JSON'
 {
   "dt_url": "http://host.docker.internal:3000/api/recognize/upload",
   "save_dir": "/share/ipeye_shots",

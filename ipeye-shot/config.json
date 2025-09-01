@@ -1,7 +1,7 @@
 {
   "name": "IPEYE Shot to Double-Take (HTTP service)",
   "slug": "ipeye-shot",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Headless Chromium делает снимок из iframe по URL и отправляет в Double-Take. Вызывается через HTTP или addon_stdin.",
   "arch": ["amd64", "aarch64", "armv7"],
   "startup": "services",
@@ -13,33 +13,46 @@
   "watchdog": "http://[HOST]:[PORT:8099]/health",
   "map": ["share:rw"],
   "options": {
-    "default_player_url": "",
-    "default_camera": "porch",
-    "dt_url": "http://192.168.50.99:3000/api/recognize/upload",
+    "dt_url": "http://192.168.50.99:3000/api/recognize",
     "save_dir": "/share/ipeye_shots",
     "save_always": true,
-    "play_wait_ms": 1200,
+
+    "public_base_url": "http://192.168.50.50:8099",
+    "public_prefix": "/shots",
+    "serve_save_dir": true,
+
     "view_w": 1280,
     "view_h": 720,
     "headless": "new",
     "iframe_selector": "iframe",
-    "http_port": 8099,
+    "play_wait_ms": 1200,
+
     "retries": 1,
-    "retry_delay_ms": 500
+    "retry_delay_ms": 500,
+
+    "prewarm": true,
+    "reload_minutes": 60,
+    "cameras": [
+      { "name": "porch", "player_url": "https://…/porch", "iframe_selector": "iframe" },
+      { "name": "yard",  "player_url": "https://…/yard",  "iframe_selector": "iframe" }
+    ]
   },
   "schema": {
-    "default_player_url": "str?",
-    "default_camera": "str?",
     "dt_url": "str",
     "save_dir": "str?",
     "save_always": "bool?",
-    "play_wait_ms": "int?",
+    "public_base_url": "str?",
+    "public_prefix": "str?",
+    "serve_save_dir": "bool?",
     "view_w": "int?",
     "view_h": "int?",
     "headless": "list(new|true|false)?",
     "iframe_selector": "str?",
-    "http_port": "int?",
+    "play_wait_ms": "int?",
     "retries": "int?",
-    "retry_delay_ms": "int?"
+    "retry_delay_ms": "int?",
+    "prewarm": "bool?",
+    "reload_minutes": "int?",
+    "cameras": "[{name:str,player_url:str,iframe_selector:str?}]?"
   }
 }
