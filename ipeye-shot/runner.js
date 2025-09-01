@@ -16,10 +16,49 @@ const OPT_PATH = process.env.OPT_PATH || "/data/options.json";
 const ts = () => new Date().toISOString().replace(/[:.]/g, "-");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function logFsError(err, p) {
+    const hint =
+        err?.code === 'ENOENT' ? 'Файл не найден. В аддоне HA опции лежат в /data/options.json.' :
+            err?.code === 'EACCES' ? 'Недостаточно прав. В аддоне читайте/пишите в /data; проверьте монтирование и права.' :
+                null;
+
+    console.error(`[options] Не удалось прочитать ${p}: ${err?.code || 'ERR'} ${err?.message}${hint ? ` — ${hint}` : ''}`);
+}
+
+function logJsonError(err, raw, p) {
+    const m = /position (\d+)/i.exec(err.message || '');
+    if (m) {
+        const pos = Number(m[1]);
+        const { line, col, context } = locate(raw, pos);
+        console.error(`[options] Неверный JSON в ${p}: строка ${line}, столбец ${col}. ${err.message}\n${context}`);
+    } else {
+        console.error(`[options] Неверный JSON в ${p}: ${err.message}`);
+    }
+}
+
+function locate(text, pos, radius = 40) {
+    let line = 1, col = 1;
+    for (let i = 0; i < pos && i < text.length; i++) {
+        if (text[i] === '\n') { line++; col = 1; } else { col++; }
+    }
+    const start = Math.max(0, pos - radius);
+    const end = Math.min(text.length, pos + radius);
+    const snippet = text.slice(start, end);
+    const caret = ' '.repeat(Math.max(0, pos - start)) + '^';
+    return { line, col, context: `…${snippet}…\n${caret}` };
+}
+
 async function loadOptions() {
     try {
-        return JSON.parse(await fsp.readFile(OPT_PATH, "utf8"));
-    } catch {
+        const raw = await fsp.readFile(OPT_PATH, 'utf8');
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            logJsonError(e, raw, OPT_PATH);
+            return {};
+        }
+    } catch (e) {
+        logFsError(e, OPT_PATH);
         return {};
     }
 }
