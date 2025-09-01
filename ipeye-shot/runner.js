@@ -19,49 +19,86 @@ class CameraManager {
     constructor(opts) {
         this.opts = opts;
         this.browser = null;
-        this.pages = new Map();
-
-        this.maxConcurrent = Number(opts.max_concurrent || 2);
-        this.active = 0;
-        this.queue = [];
-        this.captureTimeoutMs = Number(opts.capture_timeout_ms || 15000);
+        this.pages = new Map();   // камера → { page, busy, lastUse }
+        this.queues = new Map();  // камера → очередь запросов
+        this.active = new Map();  // камера → число активных задач
+        this.maxConcurrentPerCam = Number(opts.max_concurrent_per_cam || 1);
     }
 
-    capture = (job) => {
-        return new Promise((resolve, reject) => {
-            const item = { job, resolve, reject };
-            this.queue.push(item);
-            this._next();
-
-            if (this.captureTimeoutMs > 0) {
-                setTimeout(() => {
-                    if (this.queue.includes(item)) {
-                        this.queue = this.queue.filter((i) => i !== item);
-                        reject(new Error("Queue timeout"));
-                    }
-                }, this.captureTimeoutMs);
-            }
+    async ensureBrowser() {
+        if (this.browser && this.browser.isConnected()) return this.browser;
+        this.browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--single-process",
+                `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
+            ],
         });
-    };
+        this.browser.on("disconnected", () => (this.browser = null));
+        return this.browser;
+    }
 
-    _next = async () => {
-        if (this.active >= this.maxConcurrent) return;
-        const item = this.queue.shift();
-        if (!item) return;
+    async ensurePage(cam) {
+        let st = this.pages.get(cam.name);
+        if (!st || !st.page || st.page.isClosed()) {
+            await this.ensureBrowser();
+            const page = await this.browser.newPage();
+            await page.setViewport({
+                width: Number(this.opts.view_w || 1280),
+                height: Number(this.opts.view_h || 720),
+            });
+            st = { page, url: cam.player_url, busy: false, lastUse: Date.now() };
+            this.pages.set(cam.name, st);
+            await this.navigate(st);
+        }
+        return st;
+    }
 
-        this.active++;
+    async navigate(st) {
+        try {
+            await st.page.goto(st.url, {
+                waitUntil: "domcontentloaded",
+                timeout: 30_000,
+            });
+            await sleep(500);
+        } catch (e) {
+            log("WARN", `navigate failed: ${e.message}`);
+        }
+    }
+
+    async capture(job) {
+        return new Promise((resolve, reject) => {
+            const q = this.queues.get(job.name) || [];
+            q.push({ job, resolve, reject });
+            this.queues.set(job.name, q);
+            this._next(job.name);
+        });
+    }
+
+    async _next(name) {
+        const active = this.active.get(name) || 0;
+        const q = this.queues.get(name) || [];
+        if (!q.length || active >= this.maxConcurrentPerCam) return;
+
+        const item = q.shift();
+        this.queues.set(name, q);
+        this.active.set(name, active + 1);
+
         try {
             const res = await this._doCapture(item.job);
             item.resolve(res);
         } catch (err) {
             item.reject(err);
         } finally {
-            this.active--;
-            void this._next();
+            this.active.set(name, (this.active.get(name) || 1) - 1);
+            this._next(name); // запускаем следующий в очереди для этой камеры
         }
-    };
+    }
 
-    _doCapture = async ({ name, player_url }) => {
+    async _doCapture({ name, player_url }) {
         if (!player_url) throw new Error("player_url required");
 
         const st = await this.ensurePage({ name, player_url });
@@ -77,7 +114,6 @@ class CameraManager {
         const jpg = path.join(saveDir, `${baseName}.jpg`);
         await fsp.writeFile(jpg, buf);
 
-        // формируем публичный URL
         const pubBase =
             this.opts.public_base_url ||
             `http://127.0.0.1:${this.opts.http_port || 8099}`;
@@ -88,7 +124,6 @@ class CameraManager {
 
         log("SAVE", `${jpg} -> ${imageUrl}`);
 
-        // если настроен DT_URL — отправляем туда
         if (this.opts.dt_url) {
             const qs = new URLSearchParams({
                 url: imageUrl,
@@ -97,7 +132,6 @@ class CameraManager {
             });
             const dtUrl = `${String(this.opts.dt_url).replace(/\/$/, "")}?${qs}`;
             log("DT", `GET ${dtUrl}`);
-
             try {
                 const res = await fetch(dtUrl);
                 const text = await res.text().catch(() => "");
@@ -113,66 +147,11 @@ class CameraManager {
 
         st.busy = false;
 
-        return {
-            file: path.basename(jpg),
-            url: imageUrl,
-            camera: name,
-            ok: true,
-        };
-    };
+        return { file: path.basename(jpg), url: imageUrl, camera: name, ok: true };
+    }
 
-    ensureBrowser = async () => {
-        if (this.browser && this.browser.isConnected()) return this.browser;
-        this.browser = await puppeteer.launch({
-            headless: "new",
-            args: [
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--single-process",
-                `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
-            ],
-        });
-        this.browser.on("disconnected", () => (this.browser = null));
-        return this.browser;
-    };
-
-    ensurePage = async (cam) => {
-        let st = this.pages.get(cam.name);
-        if (!st || !st.page || st.page.isClosed()) {
-            await this.ensureBrowser();
-            const page = await this.browser.newPage();
-            await page.setViewport({
-                width: Number(this.opts.view_w || 1280),
-                height: Number(this.opts.view_h || 720),
-            });
-            st = {
-                page,
-                url: cam.player_url,
-                iframe_selector: "iframe",
-                busy: false,
-                lastUse: Date.now(),
-            };
-            this.pages.set(cam.name, st);
-            await this.navigate(st);
-        }
-        return st;
-    };
-
-    navigate = async (st) => {
-        try {
-            await st.page.goto(st.url, {
-                waitUntil: "domcontentloaded",
-                timeout: 30_000,
-            });
-            await sleep(500);
-        } catch (e) {
-            log("WARN", `navigate failed: ${e.message}`);
-        }
-    };
-
-    _captureFromAny = async (st) => {
-        const { page, iframe_selector } = st;
+    async _captureFromAny(st) {
+        const { page } = st;
         const PLAY_WAIT_MS = Number(this.opts.play_wait_ms || 800);
 
         const tryVideo = async () => {
@@ -187,7 +166,7 @@ class CameraManager {
         };
 
         const tryIframe = async () => {
-            const el = await page.$(iframe_selector);
+            const el = await page.$("iframe");
             if (!el) return null;
             await sleep(PLAY_WAIT_MS);
             return el.screenshot({ type: "jpeg", quality: 70 });
@@ -198,21 +177,22 @@ class CameraManager {
             (await tryIframe()) ||
             page.screenshot({ type: "jpeg", quality: 70 })
         );
-    };
+    }
 }
 
 /* ===== bootstrap ===== */
 (async () => {
-    // читаем конфиг
     let opts = {};
     try {
-        const raw = await fsp.readFile(process.env.OPT_PATH || "/data/options.json", "utf8");
+        const raw = await fsp.readFile(
+            process.env.OPT_PATH || "/data/options.json",
+            "utf8"
+        );
         opts = JSON.parse(raw);
     } catch {
         opts = {};
     }
 
-    // приоритет: ENV > options.json > дефолт
     opts = {
         save_dir: opts.save_dir || def_save_dir,
         http_port: opts.http_port || 8099,
@@ -220,21 +200,18 @@ class CameraManager {
         public_prefix: opts.public_prefix || "/shots",
         public_base_url: process.env.PUBLIC_BASE_URL || opts.public_base_url || null,
         dt_url: process.env.DT_URL || opts.dt_url || null,
-        max_concurrent: opts.max_concurrent || 2,
-        capture_timeout_ms: opts.capture_timeout_ms || 15000,
+        max_concurrent_per_cam: opts.max_concurrent_per_cam || 1,
+        play_wait_ms: opts.play_wait_ms || 800,
         browser_idle_minutes: opts.browser_idle_minutes || 15,
         file_ttl_hours: opts.file_ttl_hours || 6,
     };
 
     const manager = new CameraManager(opts);
 
-    // rate limit
-    await fastify.register(rateLimit, { max: 10, timeWindow: "1 minute" });
+    await fastify.register(rateLimit, { max: 20, timeWindow: "1 minute" });
 
-    // health check
     fastify.get("/health", async () => ({ ok: true }));
 
-    // capture API
     fastify.get("/capture", async (req, reply) => {
         const camera = req.query.camera || "adhoc";
         const playerUrl = req.query.player_url;
@@ -246,15 +223,10 @@ class CameraManager {
             const r = await manager.capture({ name: camera, player_url: playerUrl });
             return r;
         } catch (e) {
-            if (e.message.includes("timeout")) {
-                reply.code(503).send({ ok: false, error: "Queue timeout" });
-            } else {
-                reply.code(500).send({ ok: false, error: e.message });
-            }
+            reply.code(500).send({ ok: false, error: e.message });
         }
     });
 
-    // static files
     await fastify.register(fastifyStatic, {
         root: path.resolve(opts.save_dir),
         prefix: opts.public_prefix + "/",
