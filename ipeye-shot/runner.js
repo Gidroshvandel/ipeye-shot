@@ -10,7 +10,7 @@ const def_save_dir = "./ipeye-shots"
 
 const fetch = (...a) => import("node-fetch").then(({default: f}) => f(...a));
 
-const OPT_PATH = process.env.OPT_PATH || "/data/options.dev.json";
+const OPT_PATH = process.env.OPT_PATH || "/data/options.json";
 
 /* ====== util ====== */
 const ts = () => new Date().toISOString().replace(/[:.]/g, "-");
