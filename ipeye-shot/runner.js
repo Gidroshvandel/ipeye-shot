@@ -5,6 +5,9 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
 const puppeteer = require("puppeteer");
+
+const def_save_dir = "./ipeye-shots"
+
 const fetch = (...a) => import("node-fetch").then(({default: f}) => f(...a));
 
 const OPT_PATH = process.env.OPT_PATH || "/data/options.dev.json";
@@ -53,7 +56,7 @@ async function startHttp(opts, cameraManager) {
     if (httpServer) return httpServer;
     const PORT = Number(opts.http_port || 8099);
     const BIND = String(opts.http_bind || "0.0.0.0");
-    const SAVE_DIR = String(opts.save_dir || "/share/ipeye-shots");
+    const SAVE_DIR = String(opts.save_dir || def_save_dir);
     const PUBLIC_PREFIX = String(opts.public_prefix || "/shots");
     const SERVE = Boolean(opts.serve_save_dir ?? true);
 
@@ -248,8 +251,8 @@ class CameraManager {
                 if (!buf) throw new Error("capture failed (no frame)");
 
                 const baseName = `${name}-${ts()}`;
-                await fsp.mkdir(this.opts.save_dir || "/share/ipeye-shots", {recursive: true});
-                const jpg = path.join(this.opts.save_dir || "/share/ipeye-shots", `${baseName}.jpg`);
+                await fsp.mkdir(this.opts.save_dir || def_save_dir, {recursive: true});
+                const jpg = path.join(this.opts.save_dir || def_save_dir, `${baseName}.jpg`);
                 await fsp.writeFile(jpg, buf);
                 console.log("[save]", jpg);
 
@@ -263,7 +266,7 @@ class CameraManager {
 
                 const res = await fetch(url);
                 const text = await res.text().catch(() => "");
-                await fsp.writeFile(path.join(this.opts.save_dir || "/share/ipeye-shots", `${baseName}.json`), text || "{}");
+                await fsp.writeFile(path.join(this.opts.save_dir || def_save_dir, `${baseName}.json`), text || "{}");
                 if (!res.ok) throw new Error(`DT error ${res.status} ${res.statusText}`);
 
                 resolveRes({file: path.basename(jpg), camera: cameraLabel || name, ok: true});
