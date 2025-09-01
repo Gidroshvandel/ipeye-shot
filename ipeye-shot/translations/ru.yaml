@@ -10,7 +10,7 @@ configuration:
     description: Полный адрес API Double-Take (/api/recognize/upload). Обычно http://<IP_HA>:3000/api/recognize/upload.
   save_dir:
     name: Папка для снимков
-    description: Куда сохранять JPG и JSON-ответ DT. Рекомендуется /share/ipeye_shots.
+    description: Куда сохранять JPG и JSON-ответ DT. Рекомендуется /share/ipeye-shots.
   save_always:
     name: Всегда сохранять снимок
     description: Если выключено — сохраняем только JSON-ответ (и/или при ошибке).

@@ -31,7 +31,7 @@
    → {"ok":true,"busy":false,"q":0}
    ```
 
-> Снимки и JSON-ответы сохраняются в папку **/share/ipeye_shots** (Samba: `\\homeassistant\share\ipeye_shots`).
+> Снимки и JSON-ответы сохраняются в папку **/share/ipeye-shots** (Samba: `\\homeassistant\share\ipeye-shots`).
 
 ---
 
@@ -43,7 +43,7 @@
 curl -X POST http://<HA_IP>:8099/capture   -H 'Content-Type: application/json'   -d '{"player_url":"https://ipeye.ru/ipeye_service/api/iframe.php?iframe_player=0&dev=DF1...&autoplay=1","camera":"porch"}'
 ```
 
-В логах аддона увидите `OK (...)`, а в `/share/ipeye_shots/` появятся `porch-YYYY...jpg|.json`.
+В логах аддона увидите `OK (...)`, а в `/share/ipeye-shots/` появятся `porch-YYYY...jpg|.json`.
 
 ---
 
@@ -112,7 +112,7 @@ data:
 
 - `dt_url` — URL аплоада Double-Take (`/api/recognize/upload`).  
 - `default_player_url`, `default_camera` — дефолты, если не передали в запросе.  
-- `save_dir` — куда сохранять JPG/JSON (по умолчанию `/share/ipeye_shots`).  
+- `save_dir` — куда сохранять JPG/JSON (по умолчанию `/share/ipeye-shots`).  
 - `save_always` — сохранять кадр всегда (если `false` — только JSON/при ошибке).  
 - `play_wait_ms` — задержка перед снимком, чтобы плеер успел отрисовать кадр.  
 - `view_w`, `view_h` — размер окна headless Chromium.  
@@ -144,7 +144,7 @@ mkdir -p ./shots
 cat > ../options.dev.json <<'JSON'
 {
   "dt_url": "http://host.docker.internal:3000/api/recognize/upload",
-  "save_dir": "/share/ipeye_shots",
+  "save_dir": "/share/ipeye-shots",
   "save_always": true,
   "play_wait_ms": 1200,
   "view_w": 1280,
@@ -157,7 +157,7 @@ cat > ../options.dev.json <<'JSON'
 }
 JSON
 
-docker run --rm -it -p 8099:8099   --shm-size=512m   -v "$(pwd)/../options.json:/data/options.json:ro"   -v "$(pwd)/shots:/share/ipeye_shots"   --add-host=host.docker.internal:host-gateway   ipeye-shot:dev
+docker run --rm -it -p 8099:8099   --shm-size=512m   -v "$(pwd)/../options.json:/data/options.json:ro"   -v "$(pwd)/shots:/share/ipeye-shots"   --add-host=host.docker.internal:host-gateway   ipeye-shot:dev
 
 # затем в другом терминале:
 curl -X POST http://localhost:8099/capture   -H 'Content-Type: application/json'   -d '{"player_url":"https://ipeye.ru/ipeye_service/api/iframe.php?iframe_player=0&dev=DF1...&autoplay=1","camera":"porch"}'

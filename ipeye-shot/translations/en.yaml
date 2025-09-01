@@ -10,7 +10,7 @@ configuration:
     description: Full Double-Take API endpoint (/api/recognize/upload), e.g. http://<HA_IP>:3000/api/recognize/upload.
   save_dir:
     name: Snapshots directory
-    description: Where to store JPG and the Double-Take JSON response. Recommended /share/ipeye_shots.
+    description: Where to store JPG and the Double-Take JSON response. Recommended /share/ipeye-shots.
   save_always:
     name: Always save snapshot
     description: If disabled, only JSON (and/or on failure) will be saved.
