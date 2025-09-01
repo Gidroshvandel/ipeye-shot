@@ -8,4 +8,6 @@ RUN npm install --omit=dev form-data node-fetch@3
 # Кладём наши файлы рядом c node_modules puppeteer
 COPY runner.js ./runner.js
 
+USER root
+
 CMD ["node", "/home/pptruser/runner.js"]
