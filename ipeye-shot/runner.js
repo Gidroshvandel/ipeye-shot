@@ -65,7 +65,7 @@ class CameraManager {
         this.captureTimeoutMs = Number(opts.capture_timeout_ms || 15000);
     }
 
-    async capture(job) {
+    capture = (job) => {
         return new Promise((resolve, reject) => {
             const item = { job, resolve, reject, enqueuedAt: Date.now() };
             this.queue.push(item);
@@ -80,9 +80,9 @@ class CameraManager {
                 }, this.captureTimeoutMs);
             }
         });
-    }
+    };
 
-    async _next() {
+    _next = async () => {
         if (this.active >= this.maxConcurrent) return;
         const item = this.queue.shift();
         if (!item) return;
@@ -95,11 +95,11 @@ class CameraManager {
             item.reject(err);
         } finally {
             this.active--;
-            this._next();
+            await this._next();
         }
-    }
+    };
 
-    async _doCapture({ name, player_url }) {
+    _doCapture = async ({ name, player_url }) => {
         const known = parseCameras(this.opts).find((c) => c.name === name);
         const cam = known || { name, player_url, iframe_selector: "iframe" };
         if (!cam.player_url) throw new Error("player_url required");
@@ -121,8 +121,91 @@ class CameraManager {
         st.busy = false;
 
         return { file: path.basename(jpg), camera: name, ok: true };
-    }
+    };
+
+    ensureBrowser = async () => {
+        if (this.browser && this.browser.isConnected()) return this.browser;
+        this.browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--single-process",
+                `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
+            ],
+        });
+        this.browser.on("disconnected", () => (this.browser = null));
+        return this.browser;
+    };
+
+    ensurePage = async (cam) => {
+        if (this.pages.size >= (this.opts.max_pages || 3)) {
+            const oldest = [...this.pages.entries()].sort(
+                (a, b) => a[1].lastUse - b[1].lastUse
+            )[0];
+            try {
+                await oldest[1].page.close();
+            } catch {}
+            this.pages.delete(oldest[0]);
+        }
+
+        let st = this.pages.get(cam.name);
+        if (!st || !st.page || st.page.isClosed()) {
+            await this.ensureBrowser();
+            const page = await this.browser.newPage();
+            await page.setViewport({
+                width: Number(this.opts.view_w || 1280),
+                height: Number(this.opts.view_h || 720),
+            });
+            st = {
+                page,
+                url: cam.player_url,
+                iframe_selector: cam.iframe_selector || "iframe",
+                busy: false,
+                lastUse: Date.now(),
+            };
+            this.pages.set(cam.name, st);
+            await this.navigate(st);
+        }
+        return st;
+    };
+
+    navigate = async (st) => {
+        try {
+            await st.page.goto(st.url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await sleep(500);
+        } catch (e) {
+            log("WARN", `navigate failed: ${e.message}`);
+        }
+    };
+
+    _captureFromAny = async (st) => {
+        const { page, iframe_selector } = st;
+        const PLAY_WAIT_MS = Number(this.opts.play_wait_ms || 800);
+
+        const tryVideo = async () => {
+            for (const f of page.frames()) {
+                const h = (await f.$("video")) || (await f.$("canvas"));
+                if (h) {
+                    await sleep(PLAY_WAIT_MS);
+                    return h.screenshot({ type: "jpeg", quality: 70 });
+                }
+            }
+            return null;
+        };
+
+        const tryIframe = async () => {
+            const el = await page.$(iframe_selector);
+            if (!el) return null;
+            await sleep(PLAY_WAIT_MS);
+            return el.screenshot({ type: "jpeg", quality: 70 });
+        };
+
+        return (await tryVideo()) || (await tryIframe()) || page.screenshot({ type: "jpeg", quality: 70 });
+    };
 }
+
 
 /* ===== HTTP server ===== */
 async function startHttp(opts, manager) {
