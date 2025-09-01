@@ -1,7 +1,7 @@
 {
   "name": "IPEYE Shot to Double-Take (HTTP service)",
   "slug": "ipeye-shot",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "Headless Chromium делает снимок из iframe по URL и отправляет в Double-Take. Вызывается через HTTP или addon_stdin.",
   "arch": ["amd64", "aarch64", "armv7"],
   "startup": "services",
@@ -10,6 +10,7 @@
   "ports": { "8099/tcp": 8099 },
   "ports_description": { "8099/tcp": "HTTP API: POST /capture, GET /health" },
   "stdin": true,
+  "map": ["config:rw"],
   "watchdog": "http://[HOST]:[PORT:8099]/health",
   "options": {
     "dt_url": "http://192.168.50.99:3000/api/recognize",

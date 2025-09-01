@@ -308,6 +308,8 @@ class CameraManager {
                 await fsp.writeFile(path.join(this.opts.save_dir || def_save_dir, `${baseName}.json`), text || "{}");
                 if (!res.ok) throw new Error(`DT error ${res.status} ${res.statusText}`);
 
+                console.log("[dt] GET result", res);
+
                 resolveRes({file: path.basename(jpg), camera: cameraLabel || name, ok: true});
             } catch (e) {
                 rejectRes(e);
