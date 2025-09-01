@@ -22,22 +22,29 @@ async function loadOptions() {
 }
 
 function parseCameras(opt) {
-    let cams = opt.cameras || [];
-    if (typeof cams === "string") {
-        try {
-            cams = JSON.parse(cams);
-        } catch {
-            cams = [];
-        }
+    let cams = opt.cameras ?? [];
+    // list(str) вариант
+    if (Array.isArray(cams)) {
+        cams = cams
+            .map(line => {
+                if (typeof line !== 'string') return null;
+                const [name, url, selector] = line.split('|');
+                return { name: (name||'').trim(), player_url: (url||'').trim(), iframe_selector: (selector||'').trim() };
+            })
+            .filter(c => c && c.name && c.player_url);
+    }
+    // JSON-строка вариант
+    else if (typeof cams === 'string') {
+        try { cams = JSON.parse(cams); }
+        catch { console.warn('[opts] cameras is string but not JSON; ignoring'); cams = []; }
     }
     if (!Array.isArray(cams)) cams = [];
-    return cams.map(c => ({
-        name: String(c.name),
-        player_url: String(c.player_url || ""),
-        iframe_selector: c.iframe_selector || opt.iframe_selector || "iframe"
-    }))
+    const fallbackSel = opt.iframe_selector || 'iframe';
+    return cams
+        .map(c => ({ name: String(c.name), player_url: String(c.player_url||''), iframe_selector: c.iframe_selector || fallbackSel }))
         .filter(c => c.name && c.player_url);
 }
+
 
 /* ====== static server for SAVE_DIR ====== */
 let httpServer = null;

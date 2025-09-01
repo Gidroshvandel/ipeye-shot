@@ -1,7 +1,7 @@
 {
   "name": "IPEYE Shot to Double-Take (HTTP service)",
   "slug": "ipeye-shot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Headless Chromium делает снимок из iframe по URL и отправляет в Double-Take. Вызывается через HTTP или addon_stdin.",
   "arch": ["amd64", "aarch64", "armv7"],
   "startup": "services",
@@ -53,6 +53,9 @@
     "retry_delay_ms": "int?",
     "prewarm": "bool?",
     "reload_minutes": "int?",
-    "cameras": "[{name:str,player_url:str,iframe_selector:str?}]?"
+    "cameras": [
+      "porch|https://.../porch|iframe",
+      "yard|https://.../yard"
+    ]
   }
 }
