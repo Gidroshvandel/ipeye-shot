@@ -208,7 +208,7 @@ class CameraManager {
 
     const manager = new CameraManager(opts);
 
-    await fastify.register(rateLimit, { max: 20, timeWindow: "1 minute" });
+    await fastify.register(rateLimit, { max: 5, timeWindow: "1 second" });
 
     fastify.get("/health", async () => ({ ok: true }));
 
