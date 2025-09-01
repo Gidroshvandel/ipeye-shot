@@ -1,60 +1,45 @@
 {
   "name": "IPEYE Shot to Double-Take (HTTP service)",
   "slug": "ipeye-shot",
-  "version": "0.2.25",
-  "description": "Headless Chromium делает снимок из iframe по URL и отправляет в Double-Take. Вызывается через HTTP или addon_stdin.",
+  "version": "0.3.0",
+  "description": "Headless Chromium делает снимок из iframe по URL и отправляет в Double-Take. Вызывается через HTTP.",
   "arch": ["amd64", "aarch64", "armv7"],
   "startup": "services",
   "boot": "auto",
   "host_network": true,
   "ports": { "8099/tcp": 8099 },
-  "ports_description": { "8099/tcp": "HTTP API: POST /capture, GET /health" },
+  "ports_description": { "8099/tcp": "HTTP API: GET /capture, GET /health" },
   "stdin": true,
   "map": ["config:rw"],
   "watchdog": "http://[HOST]:[PORT:8099]/health",
   "options": {
     "dt_url": "http://192.168.50.99:3000/api/recognize",
     "save_dir": "./ipeye-shots",
-    "save_always": true,
 
     "public_base_url": "http://192.168.50.50:8099",
     "public_prefix": "/shots",
-    "serve_save_dir": true,
 
     "view_w": 1280,
     "view_h": 720,
-    "headless": "new",
-    "iframe_selector": "iframe",
     "play_wait_ms": 1200,
 
-    "retries": 1,
-    "retry_delay_ms": 500,
-
-    "max_concurrent": 2,
+    "max_concurrent_per_cam": 1,
     "capture_timeout_ms": 15000,
 
-    "prewarm": true,
-    "reload_minutes": 60,
-    "cameras": "[]"
+    "browser_idle_minutes": 15,
+    "file_ttl_hours": 6
   },
   "schema": {
     "dt_url": "str",
     "save_dir": "str?",
-    "save_always": "bool?",
     "public_base_url": "str?",
     "public_prefix": "str?",
-    "serve_save_dir": "bool?",
     "view_w": "int?",
     "view_h": "int?",
-    "headless": "list(new|true|false)?",
-    "iframe_selector": "str?",
     "play_wait_ms": "int?",
-    "retries": "int?",
-    "retry_delay_ms": "int?",
-    "max_concurrent": "int?",
+    "max_concurrent_per_cam": "int?",
     "capture_timeout_ms": "int?",
-    "prewarm": "bool?",
-    "reload_minutes": "int?",
-    "cameras": "str?"
+    "browser_idle_minutes": "int?",
+    "file_ttl_hours": "int?"
   }
 }
