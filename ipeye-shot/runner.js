@@ -57,122 +57,69 @@ class CameraManager {
         this.opts = opts;
         this.browser = null;
         this.pages = new Map();
-        this.concurrent = 0;
+
         this.maxConcurrent = Number(opts.max_concurrent || 2);
-        this.maxPages = Number(opts.max_pages || 3);
+        this.active = 0;
+        this.queue = [];
+
+        this.captureTimeoutMs = Number(opts.capture_timeout_ms || 15000); // 15s по умолчанию
     }
 
-    async ensureBrowser() {
-        if (this.browser && this.browser.isConnected()) return this.browser;
-        this.browser = await puppeteer.launch({
-            headless: "new",
-            args: [
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--single-process",
-                `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
-            ],
-        });
-        this.browser.on("disconnected", () => (this.browser = null));
-        return this.browser;
-    }
+    async capture(job) {
+        return new Promise((resolve, reject) => {
+            const item = { job, resolve, reject, enqueuedAt: Date.now() };
+            this.queue.push(item);
+            this._next();
 
-    async ensurePage(cam) {
-        // авто-закрытие при переполнении
-        if (this.pages.size >= this.maxPages) {
-            const oldest = [...this.pages.entries()].sort(
-                (a, b) => a[1].lastUse - b[1].lastUse
-            )[0];
-            try {
-                await oldest[1].page.close();
-            } catch {}
-            this.pages.delete(oldest[0]);
-        }
-
-        let st = this.pages.get(cam.name);
-        if (!st || !st.page || st.page.isClosed()) {
-            await this.ensureBrowser();
-            const page = await this.browser.newPage();
-            await page.setViewport({
-                width: Number(this.opts.view_w || 1280),
-                height: Number(this.opts.view_h || 720),
-            });
-            st = {
-                page,
-                url: cam.player_url,
-                iframe_selector: cam.iframe_selector || "iframe",
-                busy: false,
-                lastUse: Date.now(),
-            };
-            this.pages.set(cam.name, st);
-            await this.navigate(st);
-        }
-        return st;
-    }
-
-    async navigate(st) {
-        try {
-            await st.page.goto(st.url, { waitUntil: "domcontentloaded", timeout: 30_000 });
-            await sleep(500);
-        } catch (e) {
-            log("WARN", `navigate failed: ${e.message}`);
-        }
-    }
-
-    async capture({ name, player_url }) {
-        while (this.concurrent >= this.maxConcurrent) await sleep(200);
-        this.concurrent++;
-
-        try {
-            const known = parseCameras(this.opts).find((c) => c.name === name);
-            const cam = known || { name, player_url, iframe_selector: "iframe" };
-            if (!cam.player_url) throw new Error("player_url required");
-
-            const st = await this.ensurePage(cam);
-            st.busy = true;
-            st.lastUse = Date.now();
-
-            const buf = await this._captureFromAny(st);
-            if (!buf) throw new Error("no frame");
-
-            const baseName = `${name}-${ts()}`;
-            const saveDir = this.opts.save_dir || def_save_dir;
-            await fsp.mkdir(saveDir, { recursive: true });
-            const jpg = path.join(saveDir, `${baseName}.jpg`);
-            await fsp.writeFile(jpg, buf);
-
-            log("SAVE", jpg);
-
-            return { file: path.basename(jpg), camera: name, ok: true };
-        } finally {
-            this.concurrent--;
-        }
-    }
-
-    async _captureFromAny(st) {
-        const { page, iframe_selector } = st;
-        const PLAY_WAIT_MS = Number(this.opts.play_wait_ms || 800);
-
-        const tryVideo = async () => {
-            for (const f of page.frames()) {
-                const h = await f.$("video") || await f.$("canvas");
-                if (h) {
-                    await sleep(PLAY_WAIT_MS);
-                    return h.screenshot({ type: "jpeg", quality: 70 });
-                }
+            // таймаут ожидания
+            if (this.captureTimeoutMs > 0) {
+                setTimeout(() => {
+                    if (this.queue.includes(item)) {
+                        this.queue = this.queue.filter((i) => i !== item);
+                        reject(new Error("Queue timeout"));
+                    }
+                }, this.captureTimeoutMs);
             }
-            return null;
-        };
+        });
+    }
 
-        const tryIframe = async () => {
-            const el = await page.$(iframe_selector);
-            if (!el) return null;
-            await sleep(PLAY_WAIT_MS);
-            return el.screenshot({ type: "jpeg", quality: 70 });
-        };
+    async _next() {
+        if (this.active >= this.maxConcurrent) return;
+        const item = this.queue.shift();
+        if (!item) return;
 
-        return (await tryVideo()) || (await tryIframe()) || page.screenshot({ type: "jpeg", quality: 70 });
+        this.active++;
+        this._doCapture(item.job)
+            .then((res) => item.resolve(res))
+            .catch((err) => item.reject(err))
+            .finally(() => {
+                this.active--;
+                this._next();
+            });
+    }
+
+    async _doCapture({ name, player_url }) {
+        const known = parseCameras(this.opts).find((c) => c.name === name);
+        const cam = known || { name, player_url, iframe_selector: "iframe" };
+        if (!cam.player_url) throw new Error("player_url required");
+
+        const st = await this.ensurePage(cam);
+        st.busy = true;
+        st.lastUse = Date.now();
+
+        const buf = await this._captureFromAny(st);
+        if (!buf) throw new Error("no frame");
+
+        const baseName = `${name}-${ts()}`;
+        const saveDir = this.opts.save_dir || def_save_dir;
+        await fsp.mkdir(saveDir, { recursive: true });
+        const jpg = path.join(saveDir, `${baseName}.jpg`);
+        await fsp.writeFile(jpg, buf);
+
+        log("SAVE", jpg);
+        st.busy = false;
+
+        return { file: path.basename(jpg), camera: name, ok: true };
     }
 }
 

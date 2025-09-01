@@ -1,7 +1,7 @@
 {
   "name": "IPEYE Shot to Double-Take (HTTP service)",
   "slug": "ipeye-shot",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "description": "Headless Chromium делает снимок из iframe по URL и отправляет в Double-Take. Вызывается через HTTP или addon_stdin.",
   "arch": ["amd64", "aarch64", "armv7"],
   "startup": "services",
@@ -30,6 +30,9 @@
     "retries": 1,
     "retry_delay_ms": 500,
 
+    "max_concurrent": 2,
+    "capture_timeout_ms": 15000,
+
     "prewarm": true,
     "reload_minutes": 60,
     "cameras": "[]"
@@ -48,6 +51,8 @@
     "play_wait_ms": "int?",
     "retries": "int?",
     "retry_delay_ms": "int?",
+    "max_concurrent": "int?",
+    "capture_timeout_ms": "int?",
     "prewarm": "bool?",
     "reload_minutes": "int?",
     "cameras": "str?"
