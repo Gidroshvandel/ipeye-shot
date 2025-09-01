@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs");
 const fsp = require("fs/promises");
 const puppeteer = require("puppeteer");
 const fastify = require("fastify")({ logger: true });
@@ -10,6 +11,8 @@ const ts = () => new Date().toISOString().replace(/[:.]/g, "-");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (lvl, msg, ...args) =>
     console.log(`[${new Date().toISOString()}] [${lvl}]`, msg, ...args);
+
+const fetch = (...a) => import("node-fetch").then(({ default: f }) => f(...a));
 
 /* ===== CameraManager ===== */
 class CameraManager {
@@ -74,10 +77,48 @@ class CameraManager {
         const jpg = path.join(saveDir, `${baseName}.jpg`);
         await fsp.writeFile(jpg, buf);
 
-        log("SAVE", jpg);
+        // формируем публичный URL
+        const pubBase =
+            this.opts.public_base_url ||
+            `http://127.0.0.1:${this.opts.http_port || 8099}`;
+        const pref = (this.opts.public_prefix || "/shots").replace(/\/$/, "");
+        const imageUrl = `${pubBase}${pref}/${encodeURIComponent(
+            path.basename(jpg)
+        )}`;
+
+        log("SAVE", `${jpg} -> ${imageUrl}`);
+
+        // если настроен DT_URL — отправляем туда
+        if (this.opts.dt_url) {
+            const qs = new URLSearchParams({
+                url: imageUrl,
+                camera: name,
+                save: "true",
+            });
+            const dtUrl = `${String(this.opts.dt_url).replace(/\/$/, "")}?${qs}`;
+            log("DT", `GET ${dtUrl}`);
+
+            try {
+                const res = await fetch(dtUrl);
+                const text = await res.text().catch(() => "");
+                await fsp.writeFile(
+                    path.join(saveDir, `${baseName}.json`),
+                    text || "{}"
+                );
+                if (!res.ok) throw new Error(`DT error ${res.status}`);
+            } catch (e) {
+                log("ERR", `DT request failed: ${e.message}`);
+            }
+        }
+
         st.busy = false;
 
-        return { file: path.basename(jpg), camera: name, ok: true };
+        return {
+            file: path.basename(jpg),
+            url: imageUrl,
+            camera: name,
+            ok: true,
+        };
     };
 
     ensureBrowser = async () => {
@@ -120,7 +161,10 @@ class CameraManager {
 
     navigate = async (st) => {
         try {
-            await st.page.goto(st.url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await st.page.goto(st.url, {
+                waitUntil: "domcontentloaded",
+                timeout: 30_000,
+            });
             await sleep(500);
         } catch (e) {
             log("WARN", `navigate failed: ${e.message}`);
@@ -149,7 +193,11 @@ class CameraManager {
             return el.screenshot({ type: "jpeg", quality: 70 });
         };
 
-        return (await tryVideo()) || (await tryIframe()) || page.screenshot({ type: "jpeg", quality: 70 });
+        return (
+            (await tryVideo()) ||
+            (await tryIframe()) ||
+            page.screenshot({ type: "jpeg", quality: 70 })
+        );
     };
 }
 
@@ -157,14 +205,20 @@ class CameraManager {
 (async () => {
     const opts = {
         save_dir: def_save_dir,
+        http_port: 8099,
+        http_bind: "0.0.0.0",
+        public_prefix: "/shots",
+        dt_url: process.env.DT_URL || null,
         max_concurrent: 2,
         capture_timeout_ms: 15000,
+        browser_idle_minutes: 15,
+        file_ttl_hours: 6,
     };
 
     const manager = new CameraManager(opts);
 
-    // rate limit: не больше 5 запросов в минуту с одного IP
-    await fastify.register(rateLimit, { max: 5, timeWindow: "1 minute" });
+    // rate limit
+    await fastify.register(rateLimit, { max: 10, timeWindow: "1 minute" });
 
     // health check
     fastify.get("/health", async () => ({ ok: true }));
@@ -192,8 +246,41 @@ class CameraManager {
     // static files
     await fastify.register(fastifyStatic, {
         root: path.resolve(opts.save_dir),
-        prefix: "/shots/",
+        prefix: opts.public_prefix + "/",
     });
 
-    await fastify.listen({ port: 8099, host: "0.0.0.0" });
+    // idle cleanup браузера
+    setInterval(async () => {
+        const now = Date.now();
+        const idleMs = Number(opts.browser_idle_minutes || 15) * 60_000;
+        if (manager.browser && manager.pages.size === 0) {
+            if (manager.lastUse && now - manager.lastUse > idleMs) {
+                try {
+                    await manager.browser.close();
+                    manager.browser = null;
+                    log("CLEANUP", "closed idle browser");
+                } catch {}
+            }
+        }
+    }, 60_000);
+
+    // авто-чистка файлов
+    setInterval(async () => {
+        const SAVE_DIR = opts.save_dir;
+        const cutoff = Date.now() - (opts.file_ttl_hours || 6) * 3600 * 1000;
+        try {
+            for (const f of await fsp.readdir(SAVE_DIR)) {
+                const full = path.join(SAVE_DIR, f);
+                try {
+                    const stat = await fsp.stat(full);
+                    if (stat.mtimeMs < cutoff) {
+                        await fsp.unlink(full);
+                        log("CLEANUP", `deleted old file ${f}`);
+                    }
+                } catch {}
+            }
+        } catch {}
+    }, 10 * 60_000);
+
+    await fastify.listen({ port: opts.http_port, host: opts.http_bind });
 })();
