@@ -32,10 +32,7 @@
 
     "prewarm": true,
     "reload_minutes": 60,
-    "cameras": [
-      { "name": "porch", "player_url": "https://…/porch", "iframe_selector": "iframe" },
-      { "name": "yard",  "player_url": "https://…/yard",  "iframe_selector": "iframe" }
-    ]
+    "cameras": []
   },
   "schema": {
     "dt_url": "str",
@@ -53,9 +50,6 @@
     "retry_delay_ms": "int?",
     "prewarm": "bool?",
     "reload_minutes": "int?",
-    "cameras": [
-      "porch|https://.../porch|iframe",
-      "yard|https://.../yard"
-    ]
+    "cameras": "list(str)?"
   }
 }
