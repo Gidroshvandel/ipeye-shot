@@ -62,7 +62,12 @@ class CameraManager {
         this.active = 0;
         this.queue = [];
 
-        this.captureTimeoutMs = Number(opts.capture_timeout_ms || 15000); // 15s по умолчанию
+        this.captureTimeoutMs = Number(opts.capture_timeout_ms || 15000);
+
+        // биндим методы, чтобы не терять this
+        this._next = this._next.bind(this);
+        this._doCapture = this._doCapture.bind(this);
+        this.ensurePage = this.ensurePage.bind(this);
     }
 
     async capture(job) {
@@ -71,7 +76,6 @@ class CameraManager {
             this.queue.push(item);
             this._next();
 
-            // таймаут ожидания
             if (this.captureTimeoutMs > 0) {
                 setTimeout(() => {
                     if (this.queue.includes(item)) {
@@ -89,13 +93,15 @@ class CameraManager {
         if (!item) return;
 
         this.active++;
-        this._doCapture(item.job)
-            .then((res) => item.resolve(res))
-            .catch((err) => item.reject(err))
-            .finally(() => {
-                this.active--;
-                this._next();
-            });
+        try {
+            const res = await this._doCapture(item.job);
+            item.resolve(res);
+        } catch (err) {
+            item.reject(err);
+        } finally {
+            this.active--;
+            this._next();
+        }
     }
 
     async _doCapture({ name, player_url }) {
