@@ -9,5 +9,9 @@ RUN npm install --omit=dev form-data node-fetch@3
 COPY runner.js ./runner.js
 
 USER root
+RUN apt-get update && apt-get install -y acl && rm -rf /var/lib/apt/lists/*
 
-CMD ["node", "/home/pptruser/runner.js"]
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
