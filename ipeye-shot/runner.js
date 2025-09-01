@@ -218,6 +218,7 @@ class CameraManager {
         http_port: opts.http_port || 8099,
         http_bind: opts.http_bind || "0.0.0.0",
         public_prefix: opts.public_prefix || "/shots",
+        public_base_url: process.env.PUBLIC_BASE_URL || opts.public_base_url || null,
         dt_url: process.env.DT_URL || opts.dt_url || null,
         max_concurrent: opts.max_concurrent || 2,
         capture_timeout_ms: opts.capture_timeout_ms || 15000,
