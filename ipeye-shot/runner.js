@@ -63,11 +63,6 @@ class CameraManager {
         this.queue = [];
 
         this.captureTimeoutMs = Number(opts.capture_timeout_ms || 15000);
-
-        // биндим методы, чтобы не терять this
-        this._next = this._next.bind(this);
-        this._doCapture = this._doCapture.bind(this);
-        this.ensurePage = this.ensurePage.bind(this);
     }
 
     async capture(job) {
