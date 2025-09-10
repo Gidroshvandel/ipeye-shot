@@ -31,7 +31,9 @@ class CameraManager {
             headless: "new",
             args: [
                 "--no-sandbox",
+                "--disable-dev-shm-usage",
                 "--disable-gpu",
+                "--single-process",
                 `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
             ],
         });
