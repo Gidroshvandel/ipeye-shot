@@ -31,9 +31,7 @@ class CameraManager {
             headless: "new",
             args: [
                 "--no-sandbox",
-                "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--single-process",
                 `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
             ],
         });
@@ -46,10 +44,24 @@ class CameraManager {
         if (!st || !st.page || st.page.isClosed()) {
             await this.ensureBrowser();
             const page = await this.browser.newPage();
+
             await page.setViewport({
                 width: Number(this.opts.view_w || 1280),
                 height: Number(this.opts.view_h || 720),
             });
+
+            // ==== ЛОГИ БРАУЗЕРА ====
+            page.on("console", msg =>
+                log("PAGE_CONSOLE", `[${cam.name}]`, msg.type(), msg.text())
+            );
+            page.on("pageerror", err =>
+                log("PAGE_ERROR", `[${cam.name}]`, err.message)
+            );
+            page.on("response", res =>
+                log("PAGE_NET", `[${cam.name}]`, res.status(), res.url())
+            );
+            // ======================
+
             st = { page, url: cam.player_url, busy: false, lastUse: Date.now() };
             this.pages.set(cam.name, st);
             await this.navigate(st);
