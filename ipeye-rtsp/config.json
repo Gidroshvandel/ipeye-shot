@@ -1,0 +1,32 @@
+{
+  "name": "IPEYE RTSP Proxy",
+  "version": "1.0.0",
+  "slug": "ipeye_rtsp",
+  "description": "Преобразует до 5 потоков IPEYE HLS в RTSP для Home Assistant / Double-Take",
+  "arch": ["amd64", "armv7", "aarch64"],
+  "startup": "services",
+  "boot": "auto",
+  "ports": {
+    "8554/tcp": 8554
+  },
+  "options": {
+    "cameras": [
+      {
+        "name": "cam1",
+        "hls_url": "https://example1/hls/index.m3u8"
+      },
+      {
+        "name": "cam2",
+        "hls_url": "https://example2/hls/index.m3u8"
+      }
+    ]
+  },
+  "schema": {
+    "cameras": [
+      {
+        "name": "str",
+        "hls_url": "str"
+      }
+    ]
+  }
+}
