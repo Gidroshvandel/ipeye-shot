@@ -33,7 +33,16 @@ class CameraManager {
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
-                "--single-process",
+                "--disable-software-rasterizer",
+                "--mute-audio",
+                "--disable-extensions",
+                "--disable-sync",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+                "--enable-logging",
+                "--v=1",
                 `--window-size=${this.opts.view_w || 1280},${this.opts.view_h || 720}`,
             ],
         });
@@ -139,24 +148,26 @@ class CameraManager {
         log("SAVE", `${jpg} -> ${imageUrl}`);
 
         if (this.opts.dt_url) {
-            const qs = new URLSearchParams({
-                url: imageUrl,
-                camera: name,
-                save: "true",
+            setImmediate(async () => {
+                const qs = new URLSearchParams({
+                    url: imageUrl,
+                    camera: name,
+                    save: "true",
+                });
+                const dtUrl = `${String(this.opts.dt_url).replace(/\/$/, "")}?${qs}`;
+                log("DT", `GET ${dtUrl}`);
+                try {
+                    const res = await fetch(dtUrl);
+                    const text = await res.text().catch(() => "");
+                    await fsp.writeFile(
+                        path.join(saveDir, `${baseName}.json`),
+                        text || "{}"
+                    );
+                    if (!res.ok) log("ERR", `DT error ${res.status}`);
+                } catch (e) {
+                    log("ERR", `DT request failed: ${e.message}`);
+                }
             });
-            const dtUrl = `${String(this.opts.dt_url).replace(/\/$/, "")}?${qs}`;
-            log("DT", `GET ${dtUrl}`);
-            try {
-                const res = await fetch(dtUrl);
-                const text = await res.text().catch(() => "");
-                await fsp.writeFile(
-                    path.join(saveDir, `${baseName}.json`),
-                    text || "{}"
-                );
-                if (!res.ok) throw new Error(`DT error ${res.status}`);
-            } catch (e) {
-                log("ERR", `DT request failed: ${e.message}`);
-            }
         }
 
         st.busy = false;
@@ -167,6 +178,13 @@ class CameraManager {
     async _captureFromAny(st) {
         const { page } = st;
         const PLAY_WAIT_MS = Number(this.opts.play_wait_ms || 800);
+
+        const tryIframe = async () => {
+            const el = await page.$("iframe");
+            if (!el) return null;
+            await sleep(PLAY_WAIT_MS);
+            return el.screenshot({ type: "jpeg", quality: 70 });
+        };
 
         const tryVideo = async () => {
             for (const f of page.frames()) {
@@ -179,16 +197,9 @@ class CameraManager {
             return null;
         };
 
-        const tryIframe = async () => {
-            const el = await page.$("iframe");
-            if (!el) return null;
-            await sleep(PLAY_WAIT_MS);
-            return el.screenshot({ type: "jpeg", quality: 70 });
-        };
-
         return (
-            (await tryVideo()) ||
             (await tryIframe()) ||
+            (await tryVideo()) ||
             page.screenshot({ type: "jpeg", quality: 70 })
         );
     }
@@ -256,6 +267,20 @@ class CameraManager {
                     await manager.browser.close();
                     manager.browser = null;
                     log("CLEANUP", "closed idle browser");
+                } catch {}
+            }
+        }
+    }, 60_000);
+
+    // авто-закрытие неиспользуемых страниц
+    setInterval(async () => {
+        const now = Date.now();
+        for (const [name, st] of manager.pages) {
+            if (!st.busy && now - st.lastUse > 60_000) { // idle 1 минута
+                try {
+                    await st.page.close();
+                    manager.pages.delete(name);
+                    log("CLEANUP", `closed idle page ${name}`);
                 } catch {}
             }
         }
